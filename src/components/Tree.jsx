@@ -72,43 +72,7 @@ const data = [
     name: "Type user",
     children: [
       {
-        name: "hello",
-        children: [
-          { name: "hello", return: "String" },
-          {
-            name: "user",
-            children: [
-              { name: "hello", return: "String" },
-              {
-                name: "user",
-                children: [
-                  { name: "hello", return: "String" },
-                  {
-                    name: "user",
-                    children: [
-                      { name: "set_hello", checked: false },
-                      {
-                        name: "user",
-                        return: "User",
-                        checked: false,
-                        args: {
-                          id: {
-                            type: "sessionVar",
-                            value: "x-hasura-user-id"
-                          },
-                          name: {
-                            type: "sessionVar",
-                            value: "x-hasura-user-id"
-                          }
-                        }
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        name: "hello"
       },
       { name: "user", return: "User" }
     ]
@@ -213,23 +177,9 @@ const Item = ({ i, setItem = (e) => console.log(e) }) => {
 
 const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
   const setArgVal = useCallback((d) => setArg({ ...v, value: d }), [setArg, v]);
-  const setArgValType = useCallback((t) => setArg({ ...v, type: t }), [
-    setArg,
-    v
-  ]);
   return (
     <>
       <label for={k}> {k}:</label>
-      <select
-        name={k}
-        id={k}
-        value={v.type}
-        style={{ border: 0 }}
-        onChange={(e) => setArgValType(e.target.value)}
-      >
-        <option value="staticVal">static value</option>
-        <option value="sessionVar">from session var</option>
-      </select>
       <input
         value={v.value}
         style={{ border: 0, borderBottom: "2px solid #354c9d" }}
@@ -238,8 +188,8 @@ const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
     </>
   );
 };
-export default () => {
-  const [state, setState] = React.useState(data);
+export default ({ datasource = data }) => {
+  const [state, setState] = React.useState(datasource);
   React.useEffect(() => {
     console.log("changed--->", state);
   }, [state]);
