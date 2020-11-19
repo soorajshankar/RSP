@@ -79,7 +79,7 @@ const data = [
   }
 ];
 
-const Tree = ({ list, setState }) => {
+const Tree = ({ list, setState, schema }) => {
   // TODO add checkbox
   // TODO create and sync tree
   // TODO check actual gql schema structure and change, if required
@@ -130,15 +130,7 @@ const Tree = ({ list, setState }) => {
             />
           )}
           {i.children && (
-            <button
-              onClick={toggleExpand(ix)}
-              style={{
-                backgroundColor: "transparent",
-                border: 0,
-                color: "#0008",
-                cursor: "pointer"
-              }}
-            >
+            <button onClick={toggleExpand(ix)}>
               {expandedItems[ix] ? "-" : "+"}
             </button>
           )}
@@ -161,37 +153,83 @@ const Item = ({ i, setItem = (e) => console.log(e) }) => {
     <b>
       <b id={i.name}>{i.name}</b>
       {i.args && " ("}
-      {i.args &&
-        Object.entries(i.args).map(([k, v]) => (
-          <Select {...{ k, v, setArg: setArg(k) }} />
-        ))}
-      {i.args && " )"}
-      {i.return && (
-        <>
-          : <a href={`#${i.return}`}>{i.return}</a>
-        </>
-      )}
+      <ul>
+        {i.args &&
+          Object.entries(i.args).map(([k, v]) => (
+            <li>
+              <Select {...{ k, v, setArg: setArg(k) }} />
+            </li>
+          ))}
+      </ul>
+      <ul>
+        {i.args && " )"}
+        {i.return && (
+          <>
+            :
+            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+              {i.return}
+            </a>
+          </>
+        )}
+      </ul>
     </b>
   );
 };
 
+const getChildArgument = (v) => {
+  if (v?.type?._fields) return v?.type?._fields;
+  if (v?.type?.ofType?._fields) {
+    return v?.type?.ofType?._fields;
+  }
+};
+
 const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
+  const [expanded, setExpanded] = useState(false);
   const setArgVal = useCallback((d) => setArg({ ...v, value: d }), [setArg, v]);
+  console.log({ k });
+  const children = getChildArgument(v);
+
+  if (children) {
+    // if (v?.name === "where") console.log(">>>", Object.values(children));
+    return (
+      <ul>
+        <button onClick={() => setExpanded((b) => !b)} style={{}}>
+          {expanded ? "-" : "+"}
+        </button>
+        <label for={k}> {k}:</label>
+
+        {expanded &&
+          Object.values(children).map((i) => {
+            if (v?.name === "where") console.log(i.name);
+            return (
+              <li>
+                <Select {...{ k: i.name, v: i.value, debug: true }} />
+              </li>
+            );
+          })}
+      </ul>
+    );
+  }
   return (
-    <>
+    <li>
       <label for={k}> {k}:</label>
       <input
-        value={v.value}
+        value={v?.value}
         style={{ border: 0, borderBottom: "2px solid #354c9d" }}
         onChange={(e) => setArgVal(e.target.value)}
       />
-    </>
+      ,
+    </li>
   );
 };
-export default ({ datasource = data }) => {
+export default ({ datasource = data, schema }) => {
   const [state, setState] = React.useState(datasource);
   React.useEffect(() => {
     console.log("changed--->", state);
   }, [state]);
-  return <Tree list={state} setState={setState} />;
+  return (
+    <div className="tree">
+      <Tree list={state} setState={setState} schema={schema} />
+    </div>
+  );
 };
