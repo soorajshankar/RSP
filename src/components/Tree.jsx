@@ -1,4 +1,6 @@
+import { GraphQLInputObjectType, GraphQLList, GraphQLNonNull } from "graphql";
 import React, { useCallback, useState } from "react";
+import { setDeep } from "../utils";
 
 const data = [
   {
@@ -177,20 +179,31 @@ const Item = ({ i, setItem = (e) => console.log(e) }) => {
 };
 
 const getChildArgument = (v) => {
-  if (v?.type?._fields) return v?.type?._fields;
-  if (v?.type?.ofType?._fields) {
-    return v?.type?.ofType?._fields;
+  if(typeof v==='string') return ({children:null});// value field
+  if (v?.type instanceof GraphQLInputObjectType &&v?.type?.getFields) return {children:v?.type?.getFields(),path:'type._fields'};
+  if(v?.type instanceof GraphQLNonNull||v?.type?.ofType){
+    return {children:v?.type?.ofType?._fields,path:'type.ofType._fields'};
   }
+  return {}
 };
 
 const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
   const setArgVal = useCallback((d) => setArg({ ...v, value: d }), [setArg, v]);
-  console.log({ k });
-  const children = getChildArgument(v);
+  console.log({ k,v });
+  const {children,path} = getChildArgument(v);
+  console.log({ children,path });
 
   if (children) {
     // if (v?.name === "where") console.log(">>>", Object.values(children));
+    // const onChange=name=>value=>{
+    //   console.log('name,value,children')
+    //   const pathArr=`${path}.${name}.value`.split('.')
+    //   console.log({name,value,pathArr,children,k,v})
+    //   const newV=setDeep(v,pathArr,""+value.value,true);
+    //   console.log('VVV',newV)
+    //   // setArg({...children,[name]:value})
+    // }
     return (
       <ul>
         <button onClick={() => setExpanded((b) => !b)} style={{}}>
@@ -200,10 +213,9 @@ const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
 
         {expanded &&
           Object.values(children).map((i) => {
-            if (v?.name === "where") console.log(i.name);
             return (
               <li>
-                <Select {...{ k: i.name, v: i.value, debug: true }} />
+                <Select {...{ k: i.name, v: i, setArg}} />
               </li>
             );
           })}
