@@ -82,14 +82,30 @@ const Tree = ({ list, setState, schema }) => {
 };
 
 const Field = ({ i, setItem = (e) => console.log(e) }) => {
+  const [fieldVal, setfieldVal] = useState({});
   const setArg = useCallback(
     (k, v) => (vStr) => {
       console.log(">>>");
       console.log({ k, v, vStr });
-      // setItem({ ...i, args: { ...i.args, [k]: v } })
+      // setfieldVal({ ...i, args: { ...i.args, [k]: v } })
     },
     [setItem, i]
   );
+
+  if (!i.checked)
+    return (
+      <>
+        <b id={i.name}>{i.name}</b>
+        {i.return && (
+          <b>
+            :
+            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+              {i.return}
+            </a>
+          </b>
+        )}
+      </>
+    );
   return (
     <b>
       <b id={i.name}>{i.name}</b>
@@ -125,11 +141,11 @@ const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
     if (!argVal) return;
     if (level > 0) {
       if (typeof argVal === "string") return setArg({ [k]: argVal });
-      console.log(">>><");
+      console.log(">>><", prevState?.current, argVal);
       console.log({ ...argVal, ...prevState?.current });
 
-      setArg({ [k]: { ...argVal, ...prevState?.current } });
-      prevState.current = { ...argVal, ...prevState?.current };
+      setArg({ [k]: { ...prevState?.current, ...argVal } });
+      prevState.current = { ...prevState?.current, ...argVal };
       return;
     }
     console.log("????", v?.type?.name);
@@ -192,7 +208,7 @@ const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
     </li>
   );
 };
-export default ({ datasource = data, schema }) => {
+export default ({ datasource, schema }) => {
   const [state, setState] = React.useState(datasource);
   React.useEffect(() => {
     console.log("changed--->", state);
