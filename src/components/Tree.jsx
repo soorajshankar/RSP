@@ -1,6 +1,7 @@
 import { GraphQLInputObjectType, GraphQLList, GraphQLNonNull } from "graphql";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { setDeep } from "../utils";
+import Pen from "./Pen";
 
 const getChildArgument = (v) => {
   if (typeof v === "string") return { children: null }; // value field
@@ -135,6 +136,7 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
 
 const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [argVal, setArgVal] = useState(null);
   const prevState = useRef();
   useEffect(() => {
@@ -199,12 +201,19 @@ const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
   return (
     <li>
       <label for={k}> {k}:</label>
-      <input
-        value={v?.value}
-        style={{ border: 0, borderBottom: "2px solid #354c9d" }}
-        onChange={(e) => setArgVal(e.target.value)}
-      />
-      ,
+      {editMode ? (
+        <>
+          <input
+            value={v?.value}
+            style={{ border: 0, borderBottom: "2px solid #354c9d" }}
+            onChange={(e) => setArgVal(e.target.value)}
+          />
+        </>
+      ) : (
+        <button onClick={() => setEditMode(true)}>
+          <Pen />
+        </button>
+      )}
     </li>
   );
 };
