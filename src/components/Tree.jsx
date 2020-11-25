@@ -1,91 +1,26 @@
 import { GraphQLInputObjectType, GraphQLList, GraphQLNonNull } from "graphql";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { setDeep } from "../utils";
 
-const data = [
-  {
-    name: "Query_root",
-    children: [
-      { name: "hello", checked: false },
-      {
-        name: "user",
-        checked: false,
-        return: "User",
-        args: {
-          id: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          },
-          where: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          },
-          name: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          }
-        }
-      }
-    ]
-  },
-  {
-    name: "Mutation_root",
-    children: [
-      { name: "set_hello", checked: false },
-      {
-        name: "user",
-        return: "User",
-        checked: false,
-        args: {
-          id: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          },
-          name: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          }
-        }
-      }
-    ]
-  },
-  {
-    name: "Subscription_root",
-    children: [
-      { name: "hello", checked: false },
-      {
-        name: "user",
-        checked: true,
-        return: "User",
-        args: {
-          id: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          },
-          name: {
-            type: "sessionVar",
-            value: "x-hasura-user-id"
-          }
-        }
-      }
-    ]
-  },
-  {
-    name: "Type user",
-    children: [
-      {
-        name: "hello"
-      },
-      { name: "user", return: "User" }
-    ]
+const getChildArgument = (v) => {
+  if (typeof v === "string") return { children: null }; // value field
+  if (v?.type instanceof GraphQLInputObjectType && v?.type?.getFields)
+    return { children: v?.type?.getFields(), path: "type._fields" };
+  if (v?.type instanceof GraphQLNonNull || v?.type?.ofType) {
+    return { children: v?.type?.ofType?._fields, path: "type.ofType._fields" };
   }
-];
+  return {};
+};
 
 const Tree = ({ list, setState, schema }) => {
   // TODO add checkbox
   // TODO create and sync tree
   // TODO check actual gql schema structure and change, if required
   const [expandedItems, setExpandedItems] = useState({});
+  const [values, setValues] = useState({});
+  useEffect(() => {
+    setValues(list.filter((i) => i.checked));
+  }, [list]);
   const onCheck = useCallback(
     (ix) => (e) => {
       const newList = [...list];
@@ -136,7 +71,7 @@ const Tree = ({ list, setState, schema }) => {
               {expandedItems[ix] ? "-" : "+"}
             </button>
           )}
-          <Item i={i} setItem={setItem(ix)} />
+          <Field i={i} setItem={setItem(ix)} />
           {i.children && expandedItems[ix] && (
             <Tree list={i.children} setState={setValue(ix)} />
           )}
@@ -146,9 +81,13 @@ const Tree = ({ list, setState, schema }) => {
   );
 };
 
-const Item = ({ i, setItem = (e) => console.log(e) }) => {
+const Field = ({ i, setItem = (e) => console.log(e) }) => {
   const setArg = useCallback(
-    (k) => (v) => setItem({ ...i, args: { ...i.args, [k]: v } }),
+    (k, v) => (vStr) => {
+      console.log(">>>");
+      console.log({ k, v, vStr });
+      // setItem({ ...i, args: { ...i.args, [k]: v } })
+    },
     [setItem, i]
   );
   return (
@@ -159,7 +98,7 @@ const Item = ({ i, setItem = (e) => console.log(e) }) => {
         {i.args &&
           Object.entries(i.args).map(([k, v]) => (
             <li>
-              <Select {...{ k, v, setArg: setArg(k) }} />
+              <ArgSelect {...{ k, v, setArg: setArg(k, v), level: 0 }} />
             </li>
           ))}
       </ul>
@@ -178,21 +117,33 @@ const Item = ({ i, setItem = (e) => console.log(e) }) => {
   );
 };
 
-const getChildArgument = (v) => {
-  if(typeof v==='string') return ({children:null});// value field
-  if (v?.type instanceof GraphQLInputObjectType &&v?.type?.getFields) return {children:v?.type?.getFields(),path:'type._fields'};
-  if(v?.type instanceof GraphQLNonNull||v?.type?.ofType){
-    return {children:v?.type?.ofType?._fields,path:'type.ofType._fields'};
-  }
-  return {}
-};
-
-const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
+const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
-  const setArgVal = useCallback((d) => setArg({ ...v, value: d }), [setArg, v]);
-  console.log({ k,v });
-  const {children,path} = getChildArgument(v);
-  console.log({ children,path });
+  const [argVal, setArgVal] = useState(null);
+  const prevState = useRef();
+  useEffect(() => {
+    if (!argVal) return;
+    if (level > 0) {
+      if (typeof argVal === "string") return setArg({ [k]: argVal });
+      console.log(">>><");
+      console.log({ ...argVal, ...prevState?.current });
+
+      setArg({ [k]: { ...argVal, ...prevState?.current } });
+      prevState.current = { ...argVal, ...prevState?.current };
+      return;
+    }
+    console.log("????", v?.type?.name);
+    // TODO change case of GQL type
+    const valueStr = `${k} : ${v?.type?.name} @preset(value: ${JSON.stringify(
+      argVal
+    )})`;
+
+    setArg(valueStr);
+    // console.log(">>",level,{[k]:argVal});
+  }, [argVal, k, setArg, level, v]);
+  // const setArgVal = useCallback((d) => setArg({ ...v, value: d }), [setArg, v]);
+  const { children, path } = getChildArgument(v);
+  // console.log({ children,path });
 
   if (children) {
     // if (v?.name === "where") console.log(">>>", Object.values(children));
@@ -215,7 +166,14 @@ const Select = ({ k, v, setArg = (e) => console.log(e) }) => {
           Object.values(children).map((i) => {
             return (
               <li>
-                <Select {...{ k: i.name, v: i, setArg}} />
+                <ArgSelect
+                  {...{
+                    k: i.name,
+                    setArg: setArgVal,
+                    v: i,
+                    level: level + 1
+                  }}
+                />
               </li>
             );
           })}
