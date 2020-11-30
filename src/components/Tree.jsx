@@ -1,5 +1,6 @@
 import { GraphQLInputObjectType, GraphQLList, GraphQLNonNull } from "graphql";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import _ from 'lodash'
 import { setDeep } from "../utils";
 import Pen from "./Pen";
 
@@ -86,9 +87,12 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
   const [fieldVal, setfieldVal] = useState({});
   const setArg = useCallback(
     (k, v) => (vStr) => {
-      console.log(">>>");
-      console.log({ k, v, vStr });
-      // setfieldVal({ ...i, args: { ...i.args, [k]: v } })
+      setfieldVal(oldVal => {
+        const newState = {
+          ...oldVal, ...vStr
+        }
+        return newState
+      })
     },
     [setItem, i]
   );
@@ -137,42 +141,26 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
 const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [argVal, setArgVal] = useState(null);
-  const prevState = useRef();
-  useEffect(() => {
-    if (!argVal) return;
-    if (level > 0) {
-      if (typeof argVal === "string") return setArg({ [k]: argVal });
-      console.log(">>><", prevState?.current, argVal);
-      console.log({ ...argVal, ...prevState?.current });
 
-      setArg({ [k]: { ...prevState?.current, ...argVal } });
-      prevState.current = { ...prevState?.current, ...argVal };
-      return;
-    }
-    console.log("????", v?.type?.name);
-    // TODO change case of GQL type
-    const valueStr = `${k} : ${v?.type?.name} @preset(value: ${JSON.stringify(
-      argVal
-    )})`;
 
-    setArg(valueStr);
-    // console.log(">>",level,{[k]:argVal});
-  }, [argVal, k, setArg, level, v]);
-  // const setArgVal = useCallback((d) => setArg({ ...v, value: d }), [setArg, v]);
   const { children, path } = getChildArgument(v);
-  // console.log({ children,path });
+  const prevState = useRef()
+
+  const setArgVal = (val) => {
+    const prevVal = prevState.current
+    if (prevVal) {
+      const newState=_.merge(prevVal, val )
+      setArg(newState)
+      prevState.current = newState
+    } else {
+      setArg(val)
+      prevState.current = val
+    }
+  }
+
+
 
   if (children) {
-    // if (v?.name === "where") console.log(">>>", Object.values(children));
-    // const onChange=name=>value=>{
-    //   console.log('name,value,children')
-    //   const pathArr=`${path}.${name}.value`.split('.')
-    //   console.log({name,value,pathArr,children,k,v})
-    //   const newV=setDeep(v,pathArr,""+value.value,true);
-    //   console.log('VVV',newV)
-    //   // setArg({...children,[name]:value})
-    // }
     return (
       <ul style={{ paddingLeft: 0, marginLeft: "-8px" }}>
         <button onClick={() => setExpanded((b) => !b)} style={{}}>
@@ -187,7 +175,7 @@ const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
                 <ArgSelect
                   {...{
                     k: i.name,
-                    setArg: setArgVal,
+                    setArg: v => setArgVal({ [k]: v }),
                     v: i,
                     level: level + 1
                   }}
@@ -206,14 +194,14 @@ const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
           <input
             value={v?.value}
             style={{ border: 0, borderBottom: "2px solid #354c9d" }}
-            onChange={(e) => setArgVal(e.target.value)}
+            onChange={(e) => setArgVal({ [v?.name]: e.target.value })}
           />
         </>
       ) : (
-        <button onClick={() => setEditMode(true)}>
-          <Pen />
-        </button>
-      )}
+          <button onClick={() => setEditMode(true)}>
+            <Pen />
+          </button>
+        )}
     </li>
   );
 };
