@@ -1,6 +1,6 @@
 import { GraphQLInputObjectType, GraphQLList, GraphQLNonNull } from "graphql";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import _ from "lodash";
+import _ from 'lodash'
 import Pen from "./Pen";
 
 const getChildArgument = (v) => {
@@ -86,19 +86,18 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
   const [fieldVal, setfieldVal] = useState({});
   const setArg = useCallback(
     (k, v) => (vStr) => {
-      setfieldVal((oldVal) => {
+      setfieldVal(oldVal => {
         const newState = {
-          ...oldVal,
-          ...vStr
-        };
-        return newState;
-      });
+          ...oldVal, ...vStr
+        }
+        return newState
+      })
     },
     [setItem, i]
   );
   useEffect(() => {
-    console.log(fieldVal);
-  }, [fieldVal]);
+    console.log(fieldVal)
+  }, [fieldVal])
 
   if (!i.checked)
     return (
@@ -122,15 +121,7 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
         {i.args &&
           Object.entries(i.args).map(([k, v]) => (
             <li>
-              <ArgSelect
-                {...{
-                  k,
-                  v,
-                  value: fieldVal[k],
-                  setArg: setArg(k, v),
-                  level: 0
-                }}
-              />
+              <ArgSelect {...{ k, v, value: fieldVal[k], setArg: setArg(k, v), level: 0 }} />
             </li>
           ))}
       </ul>
@@ -151,30 +142,31 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
 
 const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
-  const [editMode, setEditMode] = useState(
-    value && typeof value === "string" && value.length > 0
-  );
-  const prevState = useRef();
+  const [editMode, setEditMode] = useState(value && typeof value === 'string' && value.length > 0);
+  const prevState = useRef()
   useEffect(() => {
-    if (value && typeof value === "string" && value.length > 0 && !editMode) {
+    if (value && typeof value === 'string' && value.length > 0 && !editMode) {
       // show value instead of pen icon, if the value is defined in the prop
-      setEditMode(true);
+      setEditMode(true)
     }
-  }, [value]);
+  }, [value])
+
 
   const { children, path } = getChildArgument(v);
 
   const setArgVal = (val) => {
-    const prevVal = prevState.current;
+    const prevVal = prevState.current
     if (prevVal) {
-      const newState = _.merge(prevVal, val);
-      setArg(newState);
-      prevState.current = newState;
+      const newState = _.merge(prevVal, val)
+      setArg(newState)
+      prevState.current = newState
     } else {
-      setArg(val);
-      prevState.current = val;
+      setArg(val)
+      prevState.current = val
     }
-  };
+  }
+
+
 
   if (children) {
     return (
@@ -186,13 +178,13 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 
         {expanded &&
           Object.values(children).map((i) => {
-            const childVal = value ? value[i?.name] : undefined;
+            const childVal = value ? value[i?.name] : undefined
             return (
               <li>
                 <ArgSelect
                   {...{
                     k: i.name,
-                    setArg: (v) => setArgVal({ [k]: v }),
+                    setArg: v => setArgVal({ [k]: v }),
                     v: i,
                     value: childVal,
                     level: level + 1
@@ -216,10 +208,10 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
           />
         </>
       ) : (
-        <button onClick={() => setEditMode(true)}>
-          <Pen />
-        </button>
-      )}
+          <button onClick={() => setEditMode(true)}>
+            <Pen />
+          </button>
+        )}
     </li>
   );
 };
