@@ -174,7 +174,7 @@ const ArgSelect = ({ k, v, level, setArg = (e) => console.log(e) }) => {
     //   // setArg({...children,[name]:value})
     // }
     return (
-      <ul>
+      <ul style={{ paddingLeft: 0, marginLeft: "-8px" }}>
         <button onClick={() => setExpanded((b) => !b)} style={{}}>
           {expanded ? "-" : "+"}
         </button>
