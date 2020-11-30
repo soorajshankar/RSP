@@ -1,7 +1,10 @@
-import { GraphQLInputObjectType, GraphQLList, GraphQLNonNull } from "graphql";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { GraphQLInputObjectType, GraphQLNonNull } from "graphql";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import _ from 'lodash'
 import Pen from "./Pen";
+import { getGqlTypeName } from '../utils';
+
+const RootContext = createContext()
 
 const getChildArgument = (v) => {
   if (typeof v === "string") return { children: null }; // value field
@@ -72,7 +75,7 @@ const Tree = ({ list, setState, schema }) => {
               {expandedItems[ix] ? "-" : "+"}
             </button>
           )}
-          <Field i={i} setItem={setItem(ix)} />
+          <Field i={i} setItem={setItem(ix)} key={i.name} />
           {i.children && expandedItems[ix] && (
             <Tree list={i.children} setState={setValue(ix)} />
           )}
@@ -95,8 +98,13 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
     },
     [setItem, i]
   );
+  const cntxt = useContext(RootContext);
   useEffect(() => {
-    console.log(fieldVal)
+    if (fieldVal && fieldVal !== {} && Object.keys(fieldVal).length > 0) {
+      cntxt.setArgTree(argTree => {
+        return { ...argTree, [i.name]: fieldVal }
+      })
+    }
   }, [fieldVal])
 
   if (!i.checked)
@@ -120,9 +128,7 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
       <ul>
         {i.args &&
           Object.entries(i.args).map(([k, v]) => (
-            <li>
-              <ArgSelect {...{ k, v, value: fieldVal[k], setArg: setArg(k, v), level: 0 }} />
-            </li>
+            <ArgSelect {...{ key: k, k, v, value: fieldVal[k], setArg: setArg(k, v), level: 0 }} />
           ))}
       </ul>
       <ul>
@@ -174,7 +180,7 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
         <button onClick={() => setExpanded((b) => !b)} style={{}}>
           {expanded ? "-" : "+"}
         </button>
-        <label for={k}> {k}:</label>
+        <label htmlFor={k}> {k}:</label>
 
         {expanded &&
           Object.values(children).map((i) => {
@@ -198,7 +204,7 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
   }
   return (
     <li>
-      <label for={k}> {k}:</label>
+      <label htmlFor={k}> {k}:</label>
       {editMode ? (
         <>
           <input
@@ -215,14 +221,41 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
     </li>
   );
 };
-export default ({ datasource, schema }) => {
+
+
+const Root = ({ datasource, schema }) => {
   const [state, setState] = React.useState(datasource);
+  const [argTree, setArgTree] = React.useState({});
   React.useEffect(() => {
     console.log("changed--->", state);
   }, [state]);
+  const printResults = () => {
+    if (!state) return
+    const fieldMap = schema.getQueryType().getFields();
+    // TODO make this a utility
+    Object.values(fieldMap).map(f => {
+      // TODO filter selected fields 
+      f.args.map(arg => {
+        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
+          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
+            argTree[f.name][arg.name]
+          )})`;
+          console.log(f.name,valueStr)
+        }
+      })
+    })
+  }
+
   return (
     <div className="tree">
-      <Tree list={state} setState={setState} schema={schema} />
+      <RootContext.Provider
+        value={{ argTree, setArgTree }}>
+        <Tree list={state} setState={setState} schema={schema} />
+        <button onClick={printResults}>Test</button>
+      </RootContext.Provider>
+
     </div>
   );
 };
+
+export default Root

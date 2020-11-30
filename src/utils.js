@@ -1,15 +1,21 @@
 export function setDeep(obj, path, value, setrecursively = false) {
-  path.reduce((a, b, level) => {
-      if (setrecursively && typeof a[b] === "undefined" && level !== path.length){
-          a[b] = {};
-          return a[b];
-      }
+    path.reduce((a, b, level) => {
+        if (setrecursively && typeof a[b] === "undefined" && level !== path.length) {
+            a[b] = {};
+            return a[b];
+        }
 
-      if (level === path.length){
-          a[b] = value;
-          return value;
-      } 
-      return a[b];
-  }, obj);
-  return obj
+        if (level === path.length) {
+            a[b] = value;
+            return value;
+        }
+        return a[b];
+    }, obj);
+    return obj
+}
+
+export const getGqlTypeName = (typeObj) => {
+    if (typeObj.ofType) {
+        return getGqlTypeName(typeObj.ofType)
+    } else return typeObj.name
 }
