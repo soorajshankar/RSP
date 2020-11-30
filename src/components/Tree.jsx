@@ -231,7 +231,7 @@ const Root = ({ datasource, schema }) => {
   }, [state]);
   const printResults = () => {
     if (!state) return
-    const fieldMap = schema.getQueryType().getFields();
+    const fieldMap = {...schema.getQueryType().getFields(),... schema.getMutationType().getFields()}
     // TODO make this a utility
     Object.values(fieldMap).map(f => {
       // TODO filter selected fields 
@@ -240,7 +240,7 @@ const Root = ({ datasource, schema }) => {
           const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
             argTree[f.name][arg.name]
           )})`;
-          console.log(f.name,valueStr)
+          console.log(f.name,">>>",valueStr)
         }
       })
     })
