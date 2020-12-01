@@ -107,6 +107,35 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
     }
   }, [fieldVal])
 
+  const handleClick = (e) => {
+    e.preventDefault();
+    const selectedTypeName = e.target.id;
+    const types = cntxt.schema.getTypeMap();
+    const selectedType = types[selectedTypeName];
+
+    let obj = {
+      name: `Type ${selectedType.name}`
+    };
+
+    let childArray = [];
+    const fields = { ...selectedType.getFields() };
+    // TODO repetition of the tree parser, need to make single reusable parser 
+    Object.entries(fields).forEach(([key, value]) => {
+      childArray.push({
+        ...value,
+        name: `${value.name}: ${value.type.inspect()}`,
+        checked: true,
+        return: value.type.toString()
+      });
+    });
+    obj.children = childArray;
+
+    cntxt.setDatasource((datasource) => {
+      const newState = [...[...datasource, obj]];
+      return newState;
+    });
+  };
+
   if (!i.checked)
     return (
       <>
@@ -114,7 +143,11 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
         {i.return && (
           <b>
             :
-            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+            <a
+              onClick={handleClick}
+              id={`${i.return.replace(/[^\w\s]/gi, "")}`}
+              href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
+            >
               {i.return}
             </a>
           </b>
@@ -136,7 +169,11 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
         {i.return && (
           <>
             :
-            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+            <a
+              onClick={handleClick}
+              id={`${i.return.replace(/[^\w\s]/gi, "")}`}
+              href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
+            >
               {i.return}
             </a>
           </>
@@ -223,27 +260,26 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 };
 
 
-const Root = ({ datasource, schema }) => {
+const Root = ({ datasource, schema, setDatasource }) => {
   const [state, setState] = React.useState(datasource);
   const [argTree, setArgTree] = React.useState({});
   const [resultString, setResultString] = React.useState('');
-  React.useEffect(() => {
+  useEffect(() => {
     console.log("changed--->", state);
-  }, [state]);
-  const printResults = () => {
     if (!state) return
-    const fieldMap = { ...schema.getQueryType().getFields(), ...schema.getMutationType().getFields() }
     // TODO make this a utility
     setResultString(generateSDL(state, argTree))
-  }
+  }, [state, argTree]);
+  useEffect(() => {
+    setState(datasource);
+  }, [datasource]);
 
   return (
     <div className="tree">
       <RootContext.Provider
-        value={{ argTree, setArgTree }}>
+        value={{ argTree, setArgTree, schema, setDatasource }}>
         <Tree list={state} setState={setState} schema={schema} />
-        <button onClick={printResults}>Test</button><br />
-        <span style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: resultString }}></span>
+        <code style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: resultString }}></code>
       </RootContext.Provider>
 
     </div>
@@ -265,19 +301,24 @@ const getSDLField = (type, argTree) => {
     if (!f.checked) return
 
     // TODO handle types, this will handle only query and mutations, ie: it adds the brackets 
-    let fieldStr = f.name + '('
-    Object.values(f.args).map(arg => {
-      if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
+    let fieldStr = f.name;
+    if (f?.args) {
+      fieldStr = fieldStr + '(';
+      Object.values(f.args).map(arg => {
+        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
 
-        const jsonStr = JSON.stringify(
-          argTree[f.name][arg.name]
-        )
-        const unquoted = jsonStr.replace(/"([^"]+)":/g, '$1:');
-        const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${unquoted})`;
-        fieldStr = fieldStr + ", " + valueStr
-      }
-    })
-    fieldStr = fieldStr + '): ' + f.return
+          const jsonStr = JSON.stringify(
+            argTree[f.name][arg.name]
+          )
+          const unquoted = jsonStr.replace(/"([^"]+)":/g, '$1:');
+          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${unquoted})`;
+          fieldStr = fieldStr + valueStr + " ,"
+        }
+      })
+      fieldStr = fieldStr + '): ' + f.return
+    } else
+      fieldStr = fieldStr + f.return
+
     result = `${result}
     ${fieldStr}`
   })

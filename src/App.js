@@ -39,10 +39,10 @@ const Test = () => {
       ]);
   }, [schema]);
   return schema && datasource && datasource.length ? (
-    <Tree {...{ datasource, schema }} />
+    <Tree {...{ datasource, schema, setDatasource }} />
   ) : (
-    "Loading..."
-  );
+      "Loading..."
+    );
 };
 
 const getTree = (schema, type) => {
