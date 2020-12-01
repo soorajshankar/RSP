@@ -1,10 +1,17 @@
 import { GraphQLInputObjectType, GraphQLNonNull } from "graphql";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import _ from 'lodash'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState
+} from "react";
+import _ from "lodash";
 import Pen from "./Pen";
-import { getGqlTypeName } from '../utils';
+import { getGqlTypeName } from "../utils";
 
-const RootContext = createContext()
+const RootContext = createContext();
 
 const getChildArgument = (v) => {
   if (typeof v === "string") return { children: null }; // value field
@@ -16,7 +23,7 @@ const getChildArgument = (v) => {
   return {};
 };
 
-const Tree = ({ list, setState, schema }) => {
+const Tree = ({ list, setState }) => {
   // TODO add checkbox
   // TODO create and sync tree
   // TODO check actual gql schema structure and change, if required
@@ -89,23 +96,54 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
   const [fieldVal, setfieldVal] = useState({});
   const setArg = useCallback(
     (k, v) => (vStr) => {
-      setfieldVal(oldVal => {
+      setfieldVal((oldVal) => {
         const newState = {
-          ...oldVal, ...vStr
-        }
-        return newState
-      })
+          ...oldVal,
+          ...vStr
+        };
+        return newState;
+      });
     },
     [setItem, i]
   );
   const cntxt = useContext(RootContext);
   useEffect(() => {
     if (fieldVal && fieldVal !== {} && Object.keys(fieldVal).length > 0) {
-      cntxt.setArgTree(argTree => {
-        return { ...argTree, [i.name]: fieldVal }
-      })
+      cntxt.setArgTree((argTree) => {
+        console.log(">>>><><", [i.name], fieldVal);
+        return { ...argTree, [i.name]: fieldVal };
+      });
     }
-  }, [fieldVal])
+  }, [fieldVal]);
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    const selectedTypeName = e.target.id;
+    const types = cntxt.schema.getTypeMap();
+    const selectedType = types[selectedTypeName];
+
+    let obj = {
+      name: `Type ${selectedType.name}`
+    };
+
+    let childArray = [];
+    const fields = { ...selectedType.getFields() };
+
+    Object.entries(fields).forEach(([key, value]) => {
+      console.log(">>>>>", value.type.inspect());
+      childArray.push({
+        name: `${value.name}: ${value.type.inspect()}`,
+        checked: true
+      });
+    });
+    obj.children = childArray;
+
+    cntxt.setDatasource((datasource) => {
+      const newState = [...[...datasource, obj]];
+      console.log({ newState });
+      return newState;
+    });
+  };
 
   if (!i.checked)
     return (
@@ -114,7 +152,11 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
         {i.return && (
           <b>
             :
-            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+            <a
+              onClick={handleClick}
+              id={`${i.return.replace(/[^\w\s]/gi, "")}`}
+              href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
+            >
               {i.return}
             </a>
           </b>
@@ -128,7 +170,16 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
       <ul>
         {i.args &&
           Object.entries(i.args).map(([k, v]) => (
-            <ArgSelect {...{ key: k, k, v, value: fieldVal[k], setArg: setArg(k, v), level: 0 }} />
+            <ArgSelect
+              {...{
+                key: k,
+                k,
+                v,
+                value: fieldVal[k],
+                setArg: setArg(k, v),
+                level: 0
+              }}
+            />
           ))}
       </ul>
       <ul>
@@ -148,31 +199,30 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
 
 const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
-  const [editMode, setEditMode] = useState(value && typeof value === 'string' && value.length > 0);
-  const prevState = useRef()
+  const [editMode, setEditMode] = useState(
+    value && typeof value === "string" && value.length > 0
+  );
+  const prevState = useRef();
   useEffect(() => {
-    if (value && typeof value === 'string' && value.length > 0 && !editMode) {
+    if (value && typeof value === "string" && value.length > 0 && !editMode) {
       // show value instead of pen icon, if the value is defined in the prop
-      setEditMode(true)
+      setEditMode(true);
     }
-  }, [value])
-
+  }, [value]);
 
   const { children, path } = getChildArgument(v);
 
   const setArgVal = (val) => {
-    const prevVal = prevState.current
+    const prevVal = prevState.current;
     if (prevVal) {
-      const newState = _.merge(prevVal, val)
-      setArg(newState)
-      prevState.current = newState
+      const newState = _.merge(prevVal, val);
+      setArg(newState);
+      prevState.current = newState;
     } else {
-      setArg(val)
-      prevState.current = val
+      setArg(val);
+      prevState.current = val;
     }
-  }
-
-
+  };
 
   if (children) {
     return (
@@ -184,13 +234,13 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 
         {expanded &&
           Object.values(children).map((i) => {
-            const childVal = value ? value[i?.name] : undefined
+            const childVal = value ? value[i?.name] : undefined;
             return (
               <li>
                 <ArgSelect
                   {...{
                     k: i.name,
-                    setArg: v => setArgVal({ [k]: v }),
+                    setArg: (v) => setArgVal({ [k]: v }),
                     v: i,
                     value: childVal,
                     level: level + 1
@@ -214,48 +264,54 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
           />
         </>
       ) : (
-          <button onClick={() => setEditMode(true)}>
-            <Pen />
-          </button>
-        )}
+        <button onClick={() => setEditMode(true)}>
+          <Pen />
+        </button>
+      )}
     </li>
   );
 };
 
-
-const Root = ({ datasource, schema }) => {
+const Root = ({ datasource, schema, setDatasource }) => {
   const [state, setState] = React.useState(datasource);
   const [argTree, setArgTree] = React.useState({});
   React.useEffect(() => {
     console.log("changed--->", state);
   }, [state]);
+  useEffect(() => {
+    setState(datasource);
+  }, [datasource]);
+
   const printResults = () => {
-    if (!state) return
-    const fieldMap = {...schema.getQueryType().getFields(),... schema.getMutationType().getFields()}
+    if (!state) return;
+    const fieldMap = {
+      ...schema.getQueryType().getFields(),
+      ...schema.getMutationType().getFields()
+    };
     // TODO make this a utility
-    Object.values(fieldMap).map(f => {
-      // TODO filter selected fields 
-      f.args.map(arg => {
+    Object.values(fieldMap).map((f) => {
+      // TODO filter selected fields
+      f.args.map((arg) => {
         if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
-          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
-            argTree[f.name][arg.name]
-          )})`;
-          console.log(f.name,">>>",valueStr)
+          const valueStr = `${arg.name} : ${getGqlTypeName(
+            arg.type
+          )} @preset(value: ${JSON.stringify(argTree[f.name][arg.name])})`;
+          console.log(f.name, ">>>", valueStr);
         }
-      })
-    })
-  }
+      });
+    });
+  };
 
   return (
     <div className="tree">
       <RootContext.Provider
-        value={{ argTree, setArgTree }}>
-        <Tree list={state} setState={setState} schema={schema} />
+        value={{ argTree, setArgTree, schema, setDatasource }}
+      >
+        <Tree list={state} setState={setState} />
         <button onClick={printResults}>Test</button>
       </RootContext.Provider>
-
     </div>
   );
 };
 
-export default Root
+export default Root;
