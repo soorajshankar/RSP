@@ -21,10 +21,6 @@ const Tree = ({ list, setState, schema }) => {
   // TODO create and sync tree
   // TODO check actual gql schema structure and change, if required
   const [expandedItems, setExpandedItems] = useState({});
-  const [values, setValues] = useState({});
-  useEffect(() => {
-    setValues(list.filter((i) => i.checked));
-  }, [list]);
   const onCheck = useCallback(
     (ix) => (e) => {
       const newList = [...list];
@@ -107,6 +103,36 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
     }
   }, [fieldVal])
 
+  const handleClick = (e) => {
+    e.preventDefault();
+    const selectedTypeName = e.target.id;
+    const types = cntxt.schema.getTypeMap();
+    const selectedType = types[selectedTypeName];
+    if (!selectedType?._fields) return
+
+    let obj = {
+      name: `Type ${selectedType.name}`
+    };
+
+    let childArray = [];
+    const fields = { ...selectedType.getFields() };
+    // TODO repetition of the tree parser, need to make single reusable parser 
+    Object.entries(fields).forEach(([key, value]) => {
+      childArray.push({
+        ...value,
+        name: `${value.name}: ${value.type.inspect()}`,
+        checked: true,
+        return: value.type.toString()
+      });
+    });
+    obj.children = childArray;
+
+    cntxt.setDatasource((datasource) => {
+      const newState = [...[...datasource, obj]];
+      return newState;
+    });
+  };
+
   if (!i.checked)
     return (
       <>
@@ -114,7 +140,11 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
         {i.return && (
           <b>
             :
-            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+            <a
+              onClick={handleClick}
+              id={`${i.return.replace(/[^\w\s]/gi, "")}`}
+              href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
+            >
               {i.return}
             </a>
           </b>
@@ -136,7 +166,11 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
         {i.return && (
           <>
             :
-            <a href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}>
+            <a
+              onClick={handleClick}
+              id={`${i.return.replace(/[^\w\s]/gi, "")}`}
+              href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
+            >
               {i.return}
             </a>
           </>
@@ -172,15 +206,16 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
     }
   }
 
+  const toggleExpandMode = () => setExpanded((b) => !b)
 
 
   if (children) {
     return (
       <ul style={{ paddingLeft: 0, marginLeft: "-8px" }}>
-        <button onClick={() => setExpanded((b) => !b)} style={{}}>
+        <button onClick={toggleExpandMode} style={{}}>
           {expanded ? "-" : "+"}
         </button>
-        <label htmlFor={k}> {k}:</label>
+        <label style={{ cursor: 'pointer' }} htmlFor={k} onClick={toggleExpandMode}> {k}:</label>
 
         {expanded &&
           Object.values(children).map((i) => {
@@ -223,39 +258,68 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 };
 
 
-const Root = ({ datasource, schema }) => {
+const Root = ({ datasource, schema, setDatasource }) => {
   const [state, setState] = React.useState(datasource);
   const [argTree, setArgTree] = React.useState({});
-  React.useEffect(() => {
+  const [resultString, setResultString] = React.useState('');
+  useEffect(() => {
     console.log("changed--->", state);
-  }, [state]);
-  const printResults = () => {
     if (!state) return
-    const fieldMap = {...schema.getQueryType().getFields(),... schema.getMutationType().getFields()}
     // TODO make this a utility
-    Object.values(fieldMap).map(f => {
-      // TODO filter selected fields 
-      f.args.map(arg => {
-        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
-          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
-            argTree[f.name][arg.name]
-          )})`;
-          console.log(f.name,">>>",valueStr)
-        }
-      })
-    })
-  }
+    setResultString(generateSDL(state, argTree))
+  }, [state, argTree]);
+  useEffect(() => {
+    setState(datasource);
+  }, [datasource]);
 
   return (
     <div className="tree">
       <RootContext.Provider
-        value={{ argTree, setArgTree }}>
+        value={{ argTree, setArgTree, schema, setDatasource }}>
         <Tree list={state} setState={setState} schema={schema} />
-        <button onClick={printResults}>Test</button>
+        <code style={{ whiteSpace: 'pre-wrap' }} >{resultString}</code>
       </RootContext.Provider>
-
     </div>
   );
 };
+
+// utils 
+const generateSDL = (types, argTree) => {
+  let result = '';
+  types.forEach(type => {
+    result = result + '\n' + getSDLField(type, argTree) + '\n'
+  });
+  return result
+}
+const getSDLField = (type, argTree) => {
+  let result = `type ${type.name}{`
+  type.children.map(f => {
+    // TODO filter selected fields 
+    if (!f.checked) return
+
+    // TODO handle types, this will handle only query and mutations, ie: it adds the brackets 
+    let fieldStr = f.name;
+    if (f?.args) {
+      fieldStr = fieldStr + '(';
+      Object.values(f.args).map(arg => {
+        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
+
+          const jsonStr = JSON.stringify(
+            argTree[f.name][arg.name]
+          )
+          const unquoted = jsonStr.replace(/"([^"]+)":/g, '$1:');
+          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${unquoted})`;
+          fieldStr = fieldStr + valueStr + " ,"
+        }
+      })
+      fieldStr = fieldStr + '): ' + f.return
+    } else
+      fieldStr = fieldStr + f.return
+
+    result = `${result}
+    ${fieldStr}`
+  })
+  return result + '\n}'
+}
 
 export default Root
