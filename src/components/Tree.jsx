@@ -112,6 +112,7 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
     const selectedTypeName = e.target.id;
     const types = cntxt.schema.getTypeMap();
     const selectedType = types[selectedTypeName];
+    if (!selectedType?._fields) return
 
     let obj = {
       name: `Type ${selectedType.name}`
