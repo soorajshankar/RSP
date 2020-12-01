@@ -268,13 +268,16 @@ const getSDLField = (type, argTree) => {
     let fieldStr = f.name + '('
     Object.values(f.args).map(arg => {
       if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
-        const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
+
+        const jsonStr = JSON.stringify(
           argTree[f.name][arg.name]
-        )})`;
+        )
+        const unquoted = jsonStr.replace(/"([^"]+)":/g, '$1:');
+        const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${unquoted})`;
         fieldStr = fieldStr + ", " + valueStr
       }
     })
-    fieldStr = fieldStr + ')'
+    fieldStr = fieldStr + '): ' + f.return
     result = `${result}
     ${fieldStr}`
   })
