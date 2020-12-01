@@ -226,24 +226,15 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 const Root = ({ datasource, schema }) => {
   const [state, setState] = React.useState(datasource);
   const [argTree, setArgTree] = React.useState({});
+  const [resultString, setResultString] = React.useState('');
   React.useEffect(() => {
     console.log("changed--->", state);
   }, [state]);
   const printResults = () => {
     if (!state) return
-    const fieldMap = {...schema.getQueryType().getFields(),... schema.getMutationType().getFields()}
+    const fieldMap = { ...schema.getQueryType().getFields(), ...schema.getMutationType().getFields() }
     // TODO make this a utility
-    Object.values(fieldMap).map(f => {
-      // TODO filter selected fields 
-      f.args.map(arg => {
-        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
-          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
-            argTree[f.name][arg.name]
-          )})`;
-          console.log(f.name,">>>",valueStr)
-        }
-      })
-    })
+    setResultString(generateSDL(state, argTree))
   }
 
   return (
@@ -251,11 +242,43 @@ const Root = ({ datasource, schema }) => {
       <RootContext.Provider
         value={{ argTree, setArgTree }}>
         <Tree list={state} setState={setState} schema={schema} />
-        <button onClick={printResults}>Test</button>
+        <button onClick={printResults}>Test</button><br />
+        <span style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: resultString }}></span>
       </RootContext.Provider>
 
     </div>
   );
 };
+
+// utils 
+const generateSDL = (types, argTree) => {
+  let result = '';
+  types.forEach(type => {
+    result = result + '\n' + getSDLField(type, argTree) + '\n'
+  });
+  return result
+}
+const getSDLField = (type, argTree) => {
+  let result = `type ${type.name}{`
+  type.children.map(f => {
+    // TODO filter selected fields 
+    if (!f.checked) return
+
+    // TODO handle types, this will handle only query and mutations, ie: it adds the brackets 
+    let fieldStr = f.name + '('
+    Object.values(f.args).map(arg => {
+      if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
+        const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${JSON.stringify(
+          argTree[f.name][arg.name]
+        )})`;
+        fieldStr = fieldStr + ", " + valueStr
+      }
+    })
+    fieldStr = fieldStr + ')'
+    result = `${result}
+    ${fieldStr}`
+  })
+  return result + '\n}'
+}
 
 export default Root

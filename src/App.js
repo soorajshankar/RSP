@@ -55,7 +55,7 @@ const getTree = (schema, type) => {
       const args = argArray.reduce((p, c, cIx) => {
         return { ...p, [c.name]: { ...c } };
       }, {});
-      return { name, checked: false, args, return: type.toString(), ...rest };
+      return { name, checked: true, args, return: type.toString(), ...rest };
     }
   );
 };
