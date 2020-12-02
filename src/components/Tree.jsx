@@ -1,20 +1,11 @@
-import { GraphQLInputObjectType, GraphQLNonNull } from "graphql";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import _ from 'lodash'
 import Pen from "./Pen";
-import { getGqlTypeName } from '../utils';
+import { generateSDL, getChildArgument } from '../utils';
 
 const RootContext = createContext()
 
-const getChildArgument = (v) => {
-  if (typeof v === "string") return { children: null }; // value field
-  if (v?.type instanceof GraphQLInputObjectType && v?.type?.getFields)
-    return { children: v?.type?.getFields(), path: "type._fields" };
-  if (v?.type instanceof GraphQLNonNull || v?.type?.ofType) {
-    return { children: v?.type?.ofType?._fields, path: "type.ofType._fields" };
-  }
-  return {};
-};
+
 
 const Tree = ({ list, setState, schema }) => {
   // TODO add checkbox
@@ -80,6 +71,22 @@ const Tree = ({ list, setState, schema }) => {
     </ul>
   );
 };
+const CollapsedField = ({ field: i, onClick }) => <>
+  <b id={i.name}>{i.name}</b>
+  {i.return && (
+    <b>
+      :
+      <a
+        onClick={onClick}
+        id={`${i.return.replace(/[^\w\s]/gi, "")}`}
+        href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
+      >
+        {i.return}
+      </a>
+    </b>
+  )}
+</>
+
 
 const Field = ({ i, setItem = (e) => console.log(e) }) => {
   const [fieldVal, setfieldVal] = useState({});
@@ -134,23 +141,7 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
   };
 
   if (!i.checked)
-    return (
-      <>
-        <b id={i.name}>{i.name}</b>
-        {i.return && (
-          <b>
-            :
-            <a
-              onClick={handleClick}
-              id={`${i.return.replace(/[^\w\s]/gi, "")}`}
-              href={`#type_${i.return.replace(/[^\w\s]/gi, "")}`}
-            >
-              {i.return}
-            </a>
-          </b>
-        )}
-      </>
-    );
+    return <CollapsedField field={i} onClick={handleClick} />
   return (
     <b>
       <b id={i.name}>{i.name}</b>
@@ -258,16 +249,18 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 };
 
 
-const Root = ({ datasource, schema, setDatasource }) => {
-  const [state, setState] = React.useState(datasource);
-  const [argTree, setArgTree] = React.useState({});
-  const [resultString, setResultString] = React.useState('');
+const TreeRoot = ({ datasource, schema, setDatasource }) => {
+  const [state, setState] = React.useState(datasource); //TODO - low priority:  a copy of datasource, could be able to remove this after evaluation
+  const [argTree, setArgTree] = React.useState({});// all @presets as an object tree
+  const [resultString, setResultString] = React.useState('');// Generated SDL 
+
   useEffect(() => {
     console.log("changed--->", state);
     if (!state) return
     // TODO make this a utility
     setResultString(generateSDL(state, argTree))
   }, [state, argTree]);
+
   useEffect(() => {
     setState(datasource);
   }, [datasource]);
@@ -283,43 +276,4 @@ const Root = ({ datasource, schema, setDatasource }) => {
   );
 };
 
-// utils 
-const generateSDL = (types, argTree) => {
-  let result = '';
-  types.forEach(type => {
-    result = result + '\n' + getSDLField(type, argTree) + '\n'
-  });
-  return result
-}
-const getSDLField = (type, argTree) => {
-  let result = `type ${type.name}{`
-  type.children.map(f => {
-    // TODO filter selected fields 
-    if (!f.checked) return
-
-    // TODO handle types, this will handle only query and mutations, ie: it adds the brackets 
-    let fieldStr = f.name;
-    if (f?.args) {
-      fieldStr = fieldStr + '(';
-      Object.values(f.args).map(arg => {
-        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
-
-          const jsonStr = JSON.stringify(
-            argTree[f.name][arg.name]
-          )
-          const unquoted = jsonStr.replace(/"([^"]+)":/g, '$1:');
-          const valueStr = `${arg.name} : ${getGqlTypeName(arg.type)} @preset(value: ${unquoted})`;
-          fieldStr = fieldStr + valueStr + " ,"
-        }
-      })
-      fieldStr = fieldStr + '): ' + f.return
-    } else
-      fieldStr = fieldStr + f.return
-
-    result = `${result}
-    ${fieldStr}`
-  })
-  return result + '\n}'
-}
-
-export default Root
+export default TreeRoot

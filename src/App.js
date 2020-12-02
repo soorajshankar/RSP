@@ -2,6 +2,7 @@ import * as GQL from "graphql";
 import React, { useEffect, useState } from "react";
 import Tree from "./components/Tree";
 import { SCHEMA } from "./constants";
+import { getTree } from "./utils";
 import "./styles.css";
 
 const { buildClientSchema } = GQL;
@@ -10,22 +11,24 @@ export default function App() {
   return (
     <div>
       <h1>from real schema</h1>
-      <Test />
+      <RSP source={SCHEMA}/>
     </div>
   );
 }
 
-const Test = () => {
+const RSP = ({source}) => {
   const [datasource, setDatasource] = useState([]);
   const [schema, setSchema] = useState();
   useEffect(() => {
-    const schema = buildClientSchema(SCHEMA);
+    if(!source)return
+    const schema = buildClientSchema(source);
     window.SCHEMA = schema;
     window.GQL = GQL;
     setSchema(schema);
-  }, []);
+  }, [source]);
 
   useEffect(() => {
+    // TODO filter other types and add to this array
     schema &&
       setDatasource([
         {
@@ -43,19 +46,4 @@ const Test = () => {
   ) : (
       "Loading..."
     );
-};
-
-const getTree = (schema, type) => {
-  const fields =
-    type === "QUERY"
-      ? schema.getQueryType().getFields()
-      : schema.getMutationType().getFields();
-  return Object.values(fields).map(
-    ({ name, args: argArray, type, ...rest }) => {
-      const args = argArray.reduce((p, c, cIx) => {
-        return { ...p, [c.name]: { ...c } };
-      }, {});
-      return { name, checked: true, args, return: type.toString(), ...rest };
-    }
-  );
 };
