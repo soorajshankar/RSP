@@ -65,7 +65,8 @@ export const getType = (schema) => {
       Object.entries(fields).forEach(([k, v]) => {
         childArray.push({
           name: v.name,
-          checked: true
+          checked: true,
+          return: v.type.toString()
         });
       });
     }
@@ -104,7 +105,7 @@ const getSDLField = (type, argTree) => {
         }
       });
       fieldStr = fieldStr + "): " + f.return;
-    } else fieldStr = fieldStr + f.return; // normal data type - ie: without arguments/ presets
+    } else fieldStr = fieldStr + " : " + f.return; // normal data type - ie: without arguments/ presets
 
     result = `${result}
       ${fieldStr}`;
