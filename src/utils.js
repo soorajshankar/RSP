@@ -1,6 +1,7 @@
 import {
   GraphQLInputObjectType,
   GraphQLNonNull,
+  GraphQLObjectType,
   GraphQLScalarType
 } from "graphql";
 
@@ -50,7 +51,7 @@ export const getType = (schema) => {
   const types = [];
   console.log({ fields });
   Object.entries(fields).forEach(([key, value]) => {
-    if (value instanceof GraphQLScalarType) return;
+    if (!(value instanceof GraphQLObjectType || value instanceof GraphQLInputObjectType)) return;
 
     const name = value.inspect();
     if (name === "query_root" || name === "mutation_root") return;
