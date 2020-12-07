@@ -49,7 +49,7 @@ export const getTree = (schema, type) => {
 export const getType = (schema) => {
   const fields = schema.getTypeMap();
   const types = [];
-  console.log({ fields });
+  // console.log({ fields });
   Object.entries(fields).forEach(([key, value]) => {
     if (!(value instanceof GraphQLObjectType || value instanceof GraphQLInputObjectType)) return;
 
@@ -95,9 +95,9 @@ const getSDLField = (type, argTree) => {
     let fieldStr = f.name;
     if (f?.args) {
       fieldStr = fieldStr + "(";
-      Object.values(f.args).map((arg) => {
-        if (argTree && argTree[f.name] && argTree[f.name][arg.name]) {
-          const jsonStr = JSON.stringify(argTree[f.name][arg.name]);
+      Object.values(f.args).map((arg, ix) => {
+        if (argTree && argTree[f.name] && argTree[f.name][arg.name] && argTree[f.name][arg.name]['__checked'] && argTree[f.name][arg.name]['__v']) {
+          const jsonStr = JSON.stringify(argTree[f.name][arg.name]['__v']);
           const unquoted = jsonStr.replace(/"([^"]+)":/g, "$1:");
           const valueStr = `${arg.name} : ${getGqlTypeName(
             arg.type

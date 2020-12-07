@@ -166,7 +166,7 @@ const Field = ({ i, setItem = (e) => console.log(e) }) => {
 const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
   const [expanded, setExpanded] = useState(false);
   const [editMode, setEditMode] = useState(
-    value && typeof value === "string" && value.length > 0
+    value && value.__v && typeof value.__v === "string" && value.__v.length > 0
   );
   const prevState = useRef();
   useEffect(() => {
@@ -194,10 +194,14 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
 
   if (children) {
     return (
-      <ul style={{ paddingLeft: 0, marginLeft: "-8px" }}>
+      <ul style={{ paddingLeft: 0, marginLeft: "-4px" }}>
         <button onClick={toggleExpandMode} style={{}}>
           {expanded ? "-" : "+"}
         </button>
+        {level === 0 && <input
+          type="checkbox"
+          onChange={(e) => setArgVal({ [v?.name]: { __checked: e.target.checked } })}
+        />}
         <label
           style={{ cursor: "pointer" }}
           htmlFor={k}
@@ -215,7 +219,12 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
                 <ArgSelect
                   {...{
                     k: i.name,
-                    setArg: (v) => setArgVal({ [k]: v }),
+                    setArg: (v) => {
+                      let newState
+                      if (level === 0) newState = { [k]: { __v: v, ...(v?.__checked && { __checked: true }) } }
+                      else newState = { [k]: v }
+                      setArgVal(newState)
+                    },
                     v: i,
                     value: childVal,
                     level: level + 1
@@ -229,20 +238,31 @@ const ArgSelect = ({ k, v, value, level, setArg = (e) => console.log(e) }) => {
   }
   return (
     <li>
+      {level === 0 && <input
+        type="checkbox"
+        // onChange={onCheck(ix)}
+        onChange={(e) => setArgVal({ [v?.name]: { __checked: e.target.checked } })}
+      />}
       <label htmlFor={k}> {k}:</label>
       {editMode ? (
         <>
           <input
-            value={value}
+            value={value?.__v}
             style={{ border: 0, borderBottom: "2px solid #354c9d" }}
-            onChange={(e) => setArgVal({ [v?.name]: e.target.value })}
+            onChange={(e) => {
+              // TODO Cleanup
+              let newState;
+              if (level === 0) newState = { [v?.name]: { __v: e.target.value } }
+              else newState = { [v?.name]: e.target.value }
+              setArgVal(newState)
+            }}
           />
         </>
       ) : (
-        <button onClick={() => setEditMode(true)}>
-          <Pen />
-        </button>
-      )}
+          <button onClick={() => setEditMode(true)}>
+            <Pen />
+          </button>
+        )}
     </li>
   );
 };
